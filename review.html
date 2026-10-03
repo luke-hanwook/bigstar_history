@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f5ef">
+  <link rel="stylesheet" href="assets/review.css">
+  <title>문항 검수 — 별채우기</title>
+</head>
+<body>
+  <header class="topbar">
+    <a class="back-link" href="index.html">← 학습 앱</a>
+    <div><p class="eyebrow">STAR HISTORY · REVIEW WORKSPACE</p><h1>문항 검수</h1></div>
+    <div class="header-actions">
+      <button id="import-log-button">기록 불러오기</button><input id="import-log" type="file" accept=".json,application/json" hidden>
+      <button id="export-log">검수 기록 내보내기</button><button id="export-data">수정 데이터 내보내기</button>
+    </div>
+  </header>
+  <main>
+    <section class="summary" aria-label="검수 진행 상황">
+      <article><span>전체 문항</span><strong id="total-count">-</strong></article>
+      <article><span>확인 완료</span><strong id="verified-count">-</strong></article>
+      <article><span>수정 필요</span><strong id="issue-count">-</strong></article>
+      <article><span>남은 문항</span><strong id="pending-count">-</strong></article>
+      <div class="progress-track"><div id="progress-fill"></div></div>
+    </section>
+    <section class="controls" aria-label="문항 탐색">
+      <label>강<select id="lesson-filter"></select></label>
+      <label>검수 상태<select id="status-filter"><option value="all">전체</option><option value="pending">미검수</option><option value="verified">확인 완료</option><option value="needs-fix">수정 필요</option><option value="corrected">수정 완료</option></select></label>
+      <label>문항 검색<input id="search" type="search" placeholder="문항 ID 또는 문장"></label>
+      <div class="stepper"><button id="previous" aria-label="이전 문항">←</button><span id="position">-</span><button id="next" aria-label="다음 문항">→</button></div>
+    </section>
+    <div class="workspace">
+      <section class="review-panel">
+        <div class="question-heading"><div><p class="eyebrow" id="course-label"></p><h2 id="lesson-title">문항을 불러오는 중</h2></div><span id="question-id" class="question-id">-</span></div>
+        <div class="meta-row"><span id="page-label">PDF 쪽수 -</span><span id="status-badge" class="badge pending">미검수</span></div>
+        <div class="reference-block"><h3>앱 문장</h3><p id="question-preview" class="question-preview">-</p><p class="muted">추출 원문: <span id="source-preview">-</span></p><p class="muted">정답: <strong id="answer-preview">-</strong></p></div>
+        <details id="warning-box" class="warnings"><summary>추출 경고 <span id="warning-count">0</span></summary><ul id="warning-list"></ul></details>
+        <div class="edit-block">
+          <h3>수정 제안</h3>
+          <label>문장<textarea id="edited-text" rows="3" spellcheck="false"></textarea></label>
+          <label>정답<input id="edited-answers" placeholder="예: 동, 막"></label>
+          <label>오류 유형<select id="issue-type"><option value="ocr">글자 깨짐 / OCR</option><option value="text">문장 누락·오탈자</option><option value="answer">정답 오류</option><option value="layout">화면 표시</option><option value="other">기타</option></select></label>
+          <label>메모<textarea id="note" rows="2" placeholder="PDF와 다른 점 또는 수정 근거"></textarea></label>
+        </div>
+        <div class="actions"><button id="mark-verified" class="primary">원문과 일치</button><button id="mark-needs-fix" class="problem">수정 필요</button><button id="save-correction" class="correct">수정 반영</button></div>
+        <p id="save-message" class="save-message" role="status"></p>
+      </section>
+      <section class="pdf-panel">
+        <div class="pdf-heading"><div><p class="eyebrow">LOCAL SOURCE · THIS DEVICE ONLY</p><h2>원본 PDF</h2></div><label class="file-button">PDF 선택<input id="pdf-file" type="file" accept="application/pdf,.pdf"></label></div>
+        <p id="pdf-status" class="pdf-status">PDF를 선택하면 문항의 원본 쪽으로 이동합니다. 파일은 브라우저에서만 엽니다.</p>
+        <iframe id="pdf-frame" title="검수용 원본 PDF" hidden></iframe>
+        <div id="pdf-empty" class="pdf-empty"><span>▧</span><strong>원본 PDF를 선택해 주세요</strong><small>PDF는 서버나 GitHub로 전송되지 않습니다.</small></div>
+      </section>
+    </div>
+  </main>
+  <script src="assets/review.js"></script>
+</body>
+</html>
