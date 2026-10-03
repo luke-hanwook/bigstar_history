@@ -1,0 +1,74 @@
+{
+  "summary": {
+    "lessonCount": 39,
+    "questionCount": 1057,
+    "expectedQuestionCount": 1057,
+    "issueCount": 6,
+    "errors": 0,
+    "warnings": 6,
+    "extractionWarningCount": 0,
+    "note": "Structural checks do not verify historical correctness against the PDF."
+  },
+  "issues": [
+    {
+      "severity": "warning",
+      "code": "source-text-differs",
+      "lessonId": "lesson-04",
+      "lessonTitle": "05강 고대(백제,신라)",
+      "questionId": "p04-q12",
+      "questionNumber": 12,
+      "sourcePage": 4,
+      "message": "answer placeholders do not reconstruct sourceText exactly"
+    },
+    {
+      "severity": "warning",
+      "code": "source-text-differs",
+      "lessonId": "lesson-11",
+      "lessonTitle": "12 고려(외교)",
+      "questionId": "p11-q16",
+      "questionNumber": 16,
+      "sourcePage": 11,
+      "message": "answer placeholders do not reconstruct sourceText exactly"
+    },
+    {
+      "severity": "warning",
+      "code": "source-text-differs",
+      "lessonId": "lesson-16",
+      "lessonTitle": "17 조선(조직)",
+      "questionId": "p16-q04",
+      "questionNumber": 4,
+      "sourcePage": 16,
+      "message": "answer placeholders do not reconstruct sourceText exactly"
+    },
+    {
+      "severity": "warning",
+      "code": "source-text-differs",
+      "lessonId": "lesson-16",
+      "lessonTitle": "17 조선(조직)",
+      "questionId": "p16-q13",
+      "questionNumber": 13,
+      "sourcePage": 16,
+      "message": "answer placeholders do not reconstruct sourceText exactly"
+    },
+    {
+      "severity": "warning",
+      "code": "source-text-differs",
+      "lessonId": "lesson-22",
+      "lessonTitle": "23 조선 후기(조직, 외교)",
+      "questionId": "p22-q25",
+      "questionNumber": 25,
+      "sourcePage": 22,
+      "message": "answer placeholders do not reconstruct sourceText exactly"
+    },
+    {
+      "severity": "warning",
+      "code": "source-text-differs",
+      "lessonId": "lesson-39",
+      "lessonTitle": "40 현대(경제 발전과 통일 정책)",
+      "questionId": "p39-q19",
+      "questionNumber": 19,
+      "sourcePage": 39,
+      "message": "answer placeholders do not reconstruct sourceText exactly"
+    }
+  ]
+}
