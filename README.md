@@ -5,7 +5,7 @@
 ## 디렉토리 구조
 
 ```text
-start_history/
+bigstar_history/
 ├── index.html                 # 앱 진입점
 ├── manifest.webmanifest       # 홈 화면 설치 설정
 ├── sw.js                      # 오프라인 캐시
