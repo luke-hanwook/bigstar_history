@@ -3,3 +3,5 @@ __pycache__/
 *.py[cod]
 *.pdf
 _site/
+star-history-review-log.json
+questions-reviewed.json
