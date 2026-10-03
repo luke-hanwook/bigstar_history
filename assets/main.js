@@ -1,0 +1,102 @@
+const COURSES = [
+  { id:'ancient', name:'선사와 여러 나라', icon:'⌁', topics:['선사 시대','여러 나라의 성장'] },
+  { id:'three', name:'삼국과 남북국', icon:'◈', topics:['고구려·가야','백제·신라','통일 신라·발해','고대 경제·사회','고대 문화'] },
+  { id:'goryeo', name:'고려', icon:'☯', topics:['고려 정치','고려 외교','고려 경제·사회','고려 문화'] },
+  { id:'early-joseon', name:'조선 전기', icon:'⌂', topics:['정치와 제도','외교','경제·사회','문화'] },
+  { id:'late-joseon', name:'조선 후기', icon:'❋', topics:['정치와 제도','경제·사회','문화'] },
+  { id:'opening', name:'개항기와 대한제국', icon:'◉', topics:['흥선 대원군','개항과 개혁','동학 농민 운동','국권 피탈'] },
+  { id:'colonial', name:'일제 강점기', icon:'✺', topics:['식민 통치','독립운동'] },
+  { id:'modern', name:'현대', icon:'⌖', topics:['광복과 전쟁','민주주의','경제 발전과 통일'] },
+];
+
+let QUESTIONS = [], LESSONS = [];
+
+const STORAGE_KEY='starfill-ipad-v1';
+const SOUND_KEY='starfill-sound-enabled';
+const state={view:'home',course:null,queue:[],queueIndex:0,session:{correct:0,mastered:0},reviews:{},mastered:{},history:[],filter:'all',studySource:'normal',hintShown:false,locked:false};
+const $=s=>document.querySelector(s); const $$=s=>[...document.querySelectorAll(s)];
+let soundEnabled=true,audioContext;try{soundEnabled=localStorage.getItem(SOUND_KEY)!=='false'}catch{}
+function syncSoundButton(){const button=$('#sound-toggle');if(!button)return;button.innerHTML=soundEnabled?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9 5 6m0-6-5 6"/></svg>';button.setAttribute('aria-label',soundEnabled?'효과음 끄기':'효과음 켜기');button.setAttribute('aria-pressed',String(soundEnabled));button.title=soundEnabled?'효과음 켜짐':'효과음 꺼짐';}
+function playTone(frequency,start,duration,wave='sine',volume=.07){if(!soundEnabled)return;try{const AudioContextClass=window.AudioContext||window.webkitAudioContext;if(!AudioContextClass)return;audioContext ||= new AudioContextClass();if(audioContext.state==='suspended')audioContext.resume();const oscillator=audioContext.createOscillator(),gain=audioContext.createGain(),at=audioContext.currentTime+start;oscillator.type=wave;oscillator.frequency.setValueAtTime(frequency,at);gain.gain.setValueAtTime(.0001,at);gain.gain.exponentialRampToValueAtTime(volume,at+.018);gain.gain.exponentialRampToValueAtTime(.0001,at+duration);oscillator.connect(gain);gain.connect(audioContext.destination);oscillator.start(at);oscillator.stop(at+duration+.02);}catch(error){console.debug('효과음을 재생할 수 없어요.',error);}}
+function playSound(kind){const notes=kind==='correct'?[[660,0,.13],[880,.11,.2]]:kind==='wrong'?[[330,0,.16],[247,.13,.23]]:[[523,0,.18],[659,.12,.18],[784,.24,.3]];notes.forEach(([frequency,start,duration])=>playTone(frequency,start,duration,'sine',kind==='star'?.055:.045));}
+function load(){try{const d=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');state.reviews=d.reviews||{};state.mastered=d.mastered||{};state.history=d.history||[];}catch{}}
+function save(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify({reviews:state.reviews,mastered:state.mastered,history:state.history}));renderStats();return true;}catch(error){console.error('학습 기록 저장 실패',error);toast('기록을 저장하지 못했어요. Safari 비공개 모드인지 확인해 주세요.');return false;}}
+function localDateKey(date=new Date()){const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,'0'),d=String(date.getDate()).padStart(2,'0');return `${y}-${m}-${d}`;}
+function activeDayStreak(){const days=new Set(state.history.map(item=>item.date).filter(date=>/^\d{4}-\d{2}-\d{2}$/.test(date)));const today=new Date();const latest=days.has(localDateKey(today))?today:new Date(today.getFullYear(),today.getMonth(),today.getDate()-1);if(!days.has(localDateKey(latest)))return 0;let count=0,cursor=latest;while(days.has(localDateKey(cursor))){count++;cursor=new Date(cursor.getFullYear(),cursor.getMonth(),cursor.getDate()-1);}return count;}
+function resetProgress(){const confirmed=window.confirm('저장된 학습 기록을 모두 초기화할까요?\n완성한 별, 복습 목록, 학습 이력과 진행 상태가 이 기기에서 삭제됩니다.');if(!confirmed)return;localStorage.removeItem(STORAGE_KEY);state.reviews={};state.mastered={};state.history=[];state.session={correct:0,mastered:0};state.course=null;state.queue=[];state.queueIndex=0;state.current=null;state.filter='all';state.studySource='normal';state.hintShown=false;state.locked=false;navTo('home');toast('모든 학습 기록을 초기화했어요.');}
+function normalize(s){return (s||'').normalize('NFKC').replace(/[\s·ㆍ,.'"!?~]/g,'').toLowerCase()}
+function navTo(view){state.view=view;if(location.hash!==`#${view}`)history.replaceState(null,"",`#${view}`);$$('.view').forEach(v=>v.classList.toggle('active',v.id===`${view}-view`));$$('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));$('#breadcrumb-current').textContent=view==='home'?'오늘의 학습':view==='review'?'다시 볼 문제':view==='mastered'?'완성한 별':view==='study'?'문제 풀이':'학습 완료';window.scrollTo({top:0,behavior:'smooth'});if(view==='home')renderHome();if(view==='review')renderReview();if(view==='mastered')renderMastered();}
+function courseQuestions(course){return QUESTIONS.filter(q=>!course||q.course===course)}
+function reviewEntries(){return Object.entries(state.reviews).filter(([,r])=>r&&r.status!=='cleared')}
+function renderStats(){const done=Object.keys(state.mastered).length,review=reviewEntries().length,total=QUESTIONS.length,pct=Math.round(done/total*100),streak=activeDayStreak();$('#streak-value').textContent=streak?`${streak}일째`:'시작 전';$('#streak-caption').textContent=streak?'연속 학습일':'문제 풀이를 마치면 기록돼요';$('#mastered-count').textContent=done;$('#total-count').textContent=total;$('#progress-percent').textContent=`${pct}%`;$('#progress-fill').style.width=`${pct}%`;$('#progress-caption').textContent=done?`차근차근 잘하고 있어요`:'첫걸음을 시작해봐요';$('#done-count').textContent=done;$('#review-inline-count').textContent=review;$('#review-total-head').textContent=review;$('#new-count').textContent=total-done;$('#sidebar-review-count').textContent=review;$('#mobile-review-count').textContent=review;$('#mastered-nav-count').textContent=done;$('#mastered-total-head').textContent=done;$('#filter-count-all').textContent=review;$('#filter-count-wrong').textContent=reviewEntries().filter(([,r])=>r.status==='wrong').length;$('#filter-count-unsure').textContent=reviewEntries().filter(([,r])=>r.status==='unsure').length;}
+function renderCourses(){const nav=$('#course-nav'),grid=$('#course-grid');nav.innerHTML='';grid.innerHTML='';COURSES.forEach(c=>{const qs=QUESTIONS.filter(q=>q.course===c.name);const done=qs.filter(q=>state.mastered[q.id]).length;const pct=qs.length?Math.round(done/qs.length*100):0;const b=document.createElement('button');b.className='course-item';b.innerHTML=`<i class="course-dot"></i>${c.name}`;b.onclick=()=>startCourse(c.name);nav.append(b)});LESSONS.forEach(lesson=>{const qs=lesson.questions;const done=qs.filter(q=>state.mastered[q.id]).length;const pct=qs.length?Math.round(done/qs.length*100):0;const group=COURSES.find(c=>c.name===lesson.course);const card=document.createElement('article');card.className='course-card';card.innerHTML=`<div class="course-card-top"><span class="course-icon">${group?.icon||'✦'}</span><span class="course-completion">${pct}%</span></div><h3>${escapeHtml(lesson.title)}</h3><div class="course-meta"><span>${escapeHtml(lesson.course)} · ${qs.length}문항</span><span>${done} 완성</span></div><div class="course-mini-track"><div class="course-mini-fill" style="width:${pct}%"></div></div>`;card.onclick=()=>startTopic(lesson.id);grid.append(card)});}
+function renderMobileCourseMenu(){const list=$('#mobile-period-list');if(!list)return;list.innerHTML='';COURSES.forEach(course=>{const button=document.createElement('button');button.type='button';button.innerHTML=`<span class="mobile-course-icon">${course.icon}</span><span>${escapeHtml(course.name)}</span><span class="mobile-course-arrow">→</span>`;button.onclick=()=>{$('#mobile-period-overlay').classList.add('hidden');startCourse(course.name)};list.append(button);});}
+function closeMobileCourseMenu(){$('#mobile-period-overlay').classList.add('hidden');$('#mobile-period-nav').focus();}
+function renderHome(){renderStats();renderCourses()}
+function startCourse(course){state.course=course;state.studySource='normal';const qs=courseQuestions(course);beginQueue(shuffle(qs).slice(0,10).map(q=>q.id));}
+function startTopic(lessonId){const lesson=LESSONS.find(item=>item.id===lessonId);if(!lesson)return;state.course=lesson.course;state.studySource='normal';beginQueue(shuffle(lesson.questions).slice(0,10).map(q=>q.id));}
+function beginQueue(ids){state.queue=ids;state.queueIndex=0;state.session={correct:0,mastered:0};if(!ids.length){toast('풀 문제가 없어요. 다른 단원을 선택해 주세요.');return}navTo('study');renderQuestion();}
+function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function renderQuestion(){state.locked=false;state.hintShown=false;const q=QUESTIONS.find(x=>x.id===state.queue[state.queueIndex]);if(!q){finishSession();return}state.current=q;state.course=q.course;$('#study-course-label').textContent=q.course;$('#study-topic-label').textContent=q.topic;$('#study-index').textContent=state.queueIndex+1;$('#study-total').textContent=state.queue.length;$('#study-progress-fill').style.width=`${state.queueIndex/state.queue.length*100}%`;$('#question-number').textContent=String(state.queueIndex+1).padStart(2,'0');$('#question-tag').textContent=q.topic;$('#question-hint').textContent='빈칸에 들어갈 말을 떠올려 보세요.';$('#result-box').className='result-box hidden';$('#answer-area').innerHTML='';const parts=q.text.split(/\{\{.*?\}\}/g);const answers=[...q.text.matchAll(/\{\{(.*?)\}\}/g)].map(m=>m[1]);let html='';parts.forEach((p,i)=>{html+=escapeHtml(p);if(i<answers.length)html+=`<input class="blank-input" aria-label="빈칸 ${i+1}" autocomplete="off" autocapitalize="off" data-answer-index="${i}" />`});$('#question-text').innerHTML=html;$('#question-text .blank-input')?.focus({preventScroll:true});$('#session-score').textContent=state.session.correct;$('#check-answer').textContent='정답 확인 →';$('#check-answer').disabled=false;}
+function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function checkAnswer(){if(state.locked){nextQuestion();return}const q=state.current, fields=$$('#question-text .blank-input'), ok=fields.length===q.answers.length&&fields.every((el,i)=>q.answers.some(a=>normalize(a)===normalize(el.value)));const box=$('#result-box');state.locked=true;fields.forEach((el,i)=>{const good=q.answers.some(a=>normalize(a)===normalize(el.value));el.classList.add(good?'correct':'wrong');el.disabled=true});if(ok){state.session.correct++;playSound('correct');box.className='result-box correct';box.innerHTML=`<div class="result-title">잘 기억했어요! ✦</div><div>${escapeHtml(q.explain)}</div>`;}else{playSound('wrong');state.reviews[q.id]={status:'wrong',at:Date.now(),attempts:(state.reviews[q.id]?.attempts||0)+1};box.className='result-box incorrect';box.innerHTML=`<div class="result-title">괜찮아요, 다시 보면 돼요.</div><div>정답: <span class="result-answer">${q.answers.map(escapeHtml).join(' / ')}</span></div><div>${escapeHtml(q.explain)}</div>`;}$('#question-hint').textContent=ok?'정답이에요. 확실하게 기억했나요?':'정답을 소리 내어 읽고 한 번 더 떠올려 보세요.';$('#check-answer').textContent='기억 정도를 선택해 주세요';$('#check-answer').disabled=true;box.insertAdjacentHTML('beforeend',`<div class="result-actions"><button data-confidence="sure">확실히 기억남</button><button data-confidence="unsure">헷갈렸어요</button>${!ok?'<button data-confidence="wrong">다시 복습</button>':''}</div>`);$$('[data-confidence]').forEach(b=>b.onclick=()=>markConfidence(b.dataset.confidence));$('#session-score').textContent=state.session.correct;}
+function markConfidence(level){const q=state.current;if(level==='sure'){if(!state.mastered[q.id])state.session.mastered++;state.mastered[q.id]=true;delete state.reviews[q.id];playSound('star');}else if(level==='unsure'){state.reviews[q.id]={status:'unsure',at:Date.now(),attempts:(state.reviews[q.id]?.attempts||0)+1};delete state.mastered[q.id];}else{state.reviews[q.id]={status:'wrong',at:Date.now(),attempts:(state.reviews[q.id]?.attempts||0)+1};}if(!save())return;$$('[data-confidence]').forEach(b=>b.disabled=true);$('#check-answer').innerHTML='다음 문제 <span>→</span>';$('#check-answer').disabled=false;toast(level==='sure'?'별을 완성해 기록했어요!':'복습 목록에 담았어요.');}
+function nextQuestion(){state.queueIndex++;if(state.queueIndex>=state.queue.length){finishSession();return}renderQuestion();window.scrollTo({top:0,behavior:'smooth'});}
+function finishSession(){state.history.push({date:localDateKey(),correct:state.session.correct});save();$('#complete-correct').textContent=state.session.correct;$('#complete-mastered').textContent=state.session.mastered;$('#complete-review').textContent=reviewEntries().length;$('#complete-message').textContent=state.session.correct===state.queue.length?'모든 문제를 맞혔어요. 정말 잘했어요!':'오늘도 기억을 꺼내는 연습을 했어요.';navTo('complete');}
+function startQuick(){const due=reviewEntries().map(([id])=>id).filter(id=>QUESTIONS.some(q=>q.id===id));const fresh=QUESTIONS.filter(q=>!state.mastered[q.id]&&!state.reviews[q.id]).map(q=>q.id);state.studySource='normal';beginQueue([...shuffle(due).slice(0,4),...shuffle(fresh).slice(0,Math.max(0,10-Math.min(due.length,4)))]);}
+function startReview(){let entries=reviewEntries().filter(([id])=>QUESTIONS.some(q=>q.id===id));if(state.filter!=='all')entries=entries.filter(([,r])=>r.status===state.filter);const ids=shuffle(entries.map(([id])=>id));if(!ids.length){toast('이 조건의 복습 문제가 없어요.');return}state.studySource='review';beginQueue(ids);}
+function renderReview(){
+  renderStats();
+  const list=$('#review-list');
+  let entries=reviewEntries();
+  if(state.filter!=='all')entries=entries.filter(([,r])=>r.status===state.filter);
+  if(!entries.length){
+    const filtered=state.filter!=='all';
+    list.innerHTML=`<div class="empty-state"><span>✧</span><h3>${filtered?'이 필터에는 문제가 없어요':'복습할 문제가 없어요'}</h3><p>${filtered?'전체 목록에서 다른 복습 문제를 확인해 보세요.':'새 문제를 풀고 헷갈린 문제를 이곳에 모아보세요.'}</p>${filtered?'<button class="text-button" id="show-all-reviews">전체 복습 목록 보기 →</button>':''}</div>`;
+    $('#show-all-reviews')?.addEventListener('click',()=>{$$('.filter-tab').forEach(button=>button.classList.toggle('active',button.dataset.filter==='all'));state.filter='all';renderReview()});
+    return;
+  }
+  list.innerHTML='';
+  entries.sort((a,b)=>(b[1].at||0)-(a[1].at||0)).forEach(([id,r])=>{
+    const q=QUESTIONS.find(item=>item.id===id);
+    const row=document.createElement('article');
+    row.className='review-row';
+    if(!q){
+      row.innerHTML=`<span class="review-state">문항 없음</span><div><p>저장된 복습 기록이 현재 문항 데이터와 연결되지 않아요.</p><small>문제 ID: ${escapeHtml(String(id))}</small></div><button class="review-open">기록 삭제</button>`;
+      row.querySelector('button').onclick=()=>{delete state.reviews[id];save();renderReview();toast('연결되지 않은 기록을 삭제했어요.')};
+      list.append(row);
+      return;
+    }
+    const status=r.status==='wrong'?'틀린 문제':'헷갈림';
+    row.innerHTML=`<span class="review-state ${r.status==='unsure'?'unsure':''}">${status}</span><div><p>${escapeHtml(q.text.replace(/\{\{(.*?)\}\}/g,'☆'))}</p><small>${escapeHtml(q.course)} · ${escapeHtml(q.topic)}</small></div><button class="review-open">다시 풀기 →</button>`;
+    row.querySelector('button').onclick=()=>{state.studySource='review';beginQueue([id])};
+    list.append(row);
+  });
+}
+function renderMastered(){
+  renderStats();
+  const list=$('#mastered-list'),select=$('#mastered-course-filter');
+  if(select.options.length===1)COURSES.forEach(course=>{const option=document.createElement('option');option.value=course.name;option.textContent=course.name;select.append(option)});
+  let completed=QUESTIONS.filter(q=>state.mastered[q.id]);
+  if(select.value!=='all')completed=completed.filter(q=>q.course===select.value);
+  if(!completed.length){
+    list.innerHTML=`<div class="empty-state"><span>✦</span><h3>${Object.keys(state.mastered).length?'이 시대에는 완성한 별이 없어요':'아직 완성한 별이 없어요'}</h3><p>문제를 풀고 “확실히 기억남”을 선택하면 여기에 모여요.</p><button class="text-button" id="go-study-from-mastered">문제 풀러 가기 →</button></div>`;
+    $('#go-study-from-mastered').onclick=()=>navTo('home');
+    return;
+  }
+  list.innerHTML='';
+  completed.forEach(q=>{
+    const row=document.createElement('article');
+    row.className='review-row mastered-row';
+    const question=escapeHtml(q.text).replace(/\{\{(.*?)\}\}/g,'<mark class="mastered-answer">$1</mark>');
+    row.innerHTML=`<span class="review-state mastered-state">✦ 완성</span><div><p>${question}</p><small>${escapeHtml(q.course)} · ${escapeHtml(q.topic)}</small></div><button class="review-open">다시 풀기 →</button>`;
+    row.querySelector('button').onclick=()=>{state.studySource='mastered';beginQueue([q.id])};
+    list.append(row);
+  });
+}
+const CHOSEONG=['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+function hintForAnswer(answer){const chars=Array.from(answer.trim());const useful=chars.filter(c=>/[가-힣A-Za-z0-9]/.test(c));if(!useful.length)return '형식 힌트 없음';const hasHangul=useful.some(c=>/[가-힣]/.test(c));if(!hasHangul){const type=useful.every(c=>/[0-9]/.test(c))?'자리 숫자':'자 영문';return `${useful.length}${type}`;}const initials=chars.map(c=>{const code=c.charCodeAt(0);if(code>=0xAC00&&code<=0xD7A3)return CHOSEONG[Math.floor((code-0xAC00)/588)];if(/[A-Za-z0-9]/.test(c))return '□';return c===' '?' ':'';}).join('').trim();return `${useful.length}글자 · ${initials}`;}
+function hint(){if(!state.current)return;const answers=[...state.current.text.matchAll(/\{\{(.*?)\}\}/g)].map(m=>m[1]);const cues=answers.map((answer,i)=>`빈칸 ${i+1}: ${hintForAnswer(answer)}`);$('#question-hint').textContent=`초성 힌트 — ${cues.join(' / ')}`;state.hintShown=true;}
+let toastTimer;function toast(s){const t=$('#toast');t.textContent=s;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),1900)}
+async function init(){load();syncSoundButton();try{const response=await fetch('./data/questions.json?v=reviewed2');if(!response.ok)throw new Error(`questions.json: ${response.status}`);const data=await response.json();LESSONS=data.lessons.map(lesson=>({...lesson,questions:lesson.questions.map(question=>({...question,course:lesson.course,topic:lesson.title,lessonId:lesson.id}))}));QUESTIONS=LESSONS.flatMap(lesson=>lesson.questions);}catch(error){console.error(error);toast('문항 데이터를 불러오지 못했어요. 서버에서 다시 열어주세요.')}const date=new Intl.DateTimeFormat('ko-KR',{month:'long',day:'numeric',weekday:'short'}).format(new Date());$('#today-date').textContent=date;renderHome();renderMobileCourseMenu();$$('[data-view]').forEach(b=>b.addEventListener('click',()=>navTo(b.dataset.view)));$('#start-session').onclick=startQuick;$('#start-review').onclick=startReview;$('#mastered-course-filter').onchange=renderMastered;$('#reset-progress').onclick=resetProgress;$('#check-answer').onclick=checkAnswer;$('#hint-button').onclick=hint;$('#leave-study').onclick=()=>navTo('home');$('#return-home').onclick=()=>navTo('home');$('#mobile-period-nav').onclick=()=>{$('#mobile-period-overlay').classList.remove('hidden');$('#close-mobile-period').focus()};$('#close-mobile-period').onclick=closeMobileCourseMenu;$('#mobile-period-overlay').onclick=event=>{if(event.target.id==='mobile-period-overlay')closeMobileCourseMenu()};$$('.filter-tab').forEach(b=>b.onclick=()=>{$$('.filter-tab').forEach(x=>x.classList.toggle('active',x===b));state.filter=b.dataset.filter;renderReview()});$('#sound-toggle').onclick=()=>{soundEnabled=!soundEnabled;localStorage.setItem(SOUND_KEY,String(soundEnabled));syncSoundButton();if(soundEnabled)playSound('correct');toast(soundEnabled?'효과음을 켰어요.':'효과음을 껐어요.')};document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#mobile-period-overlay').classList.contains('hidden'))closeMobileCourseMenu();if(e.key==='Enter'&&state.view==='study'&&!state.locked){e.preventDefault();checkAnswer()}});if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=20261003-11',{updateViaCache:'none'}).catch(()=>{}));window.addEventListener('hashchange',()=>{const route=location.hash.slice(1);if(['home','review','mastered'].includes(route))navTo(route)});const initialRoute=location.hash.slice(1);if(['home','review','mastered'].includes(initialRoute))navTo(initialRoute);}
+init();
