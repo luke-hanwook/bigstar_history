@@ -43,7 +43,7 @@ python3 scripts/extract_questions.py "/path/to/최태성 한능검 심화 별채
 
 ## 공개 배포
 
-현재 GitHub 저장소는 비공개이며 Pages 배포 워크플로는 포함하지 않았습니다. Pages를 활성화하면 정적 앱의 문항 데이터도 인터넷에서 접근할 수 있으므로, 권리자 허락을 확인한 뒤 공개 배포 설정을 추가해야 합니다.
+앱은 [GitHub Pages](https://luke-hanwook.github.io/bigstar_history/)에서 공개 중이며, 저장소와 `data/questions.json`의 문항도 인터넷에서 볼 수 있습니다. 원본 PDF는 저장소와 사이트에 포함하지 않습니다.
 
 ## 전체 문항 검수
 
