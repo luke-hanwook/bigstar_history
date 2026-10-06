@@ -53,7 +53,7 @@ python3 scripts/extract_questions.py "/path/to/최태성 한능검 심화 별채
 python3 scripts/audit_questions.py
 ```
 
-PDF와 대조하려면 로컬 서버를 실행하고 `http://localhost:8766/review.html`을 여세요. `PDF 선택`에서 원본을 고르면 현재 문항의 PDF 쪽으로 이동합니다. PDF는 브라우저 안에서만 열리며 서버나 GitHub로 전송되지 않습니다. 검수 상태는 현재 브라우저의 로컬 저장소에 저장되고, 검수 기록은 JSON으로 내보내거나 다시 불러올 수 있습니다.
+문항 검수는 로컬 서버를 실행하고 `http://localhost:8766/review.html`에서 진행합니다. 검수 화면에는 원본 PDF 뷰어가 포함되어 있지 않으므로 PDF는 별도로 열어 문항의 표시 쪽수와 대조하세요. 검수 상태는 현재 브라우저의 로컬 저장소에 저장되고, 검수 기록은 JSON으로 내보내거나 다시 불러올 수 있습니다.
 
 ```sh
 python3 -m http.server 8766
